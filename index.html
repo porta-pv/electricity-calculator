@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>حاسبة استهلاك الكهرباء</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      min-height: 100vh;
+      color: #e0e0e0;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      padding: 30px 0 20px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      color: #f0c040;
+      text-shadow: 0 0 12px rgba(240, 192, 64, 0.5);
+      letter-spacing: 1px;
+    }
+
+    header p {
+      color: #a0b8c8;
+      margin-top: 6px;
+      font-size: 0.95rem;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* ---- Input Card ---- */
+    .card {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      color: #f0c040;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: #a0c0d0;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    input::placeholder { color: #607080; }
+
+    input:focus, select:focus {
+      border-color: #f0c040;
+      box-shadow: 0 0 0 2px rgba(240, 192, 64, 0.15);
+    }
+
+    select option { background: #1a2a3a; }
+
+    .unit-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .unit-row input { flex: 1; }
+    .unit-row select { width: 90px; flex-shrink: 0; }
+
+    .btn-add {
+      background: linear-gradient(135deg, #f0c040, #e0a020);
+      color: #1a1a1a;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 20px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      width: 100%;
+    }
+
+    .btn-add:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(240, 192, 64, 0.4);
+    }
+
+    .btn-add:active { transform: translateY(0); }
+
+    /* ---- Voltage note ---- */
+    .voltage-note {
+      font-size: 0.8rem;
+      color: #7090a0;
+      margin-top: 10px;
+    }
+
+    /* ---- Table ---- */
+    .table-wrapper { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead tr {
+      background: rgba(240, 192, 64, 0.12);
+    }
+
+    th {
+      padding: 12px 10px;
+      text-align: center;
+      color: #f0c040;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 11px 10px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    tr:hover td { background: rgba(255, 255, 255, 0.04); }
+
+    .btn-del {
+      background: rgba(220, 60, 60, 0.2);
+      border: 1px solid rgba(220, 60, 60, 0.4);
+      color: #ff7070;
+      border-radius: 6px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s;
+    }
+
+    .btn-del:hover { background: rgba(220, 60, 60, 0.4); }
+
+    .empty-msg {
+      text-align: center;
+      color: #506070;
+      padding: 30px;
+      font-size: 0.95rem;
+    }
+
+    /* ---- Results ---- */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-box .label {
+      font-size: 0.78rem;
+      color: #80a0b0;
+      margin-bottom: 6px;
+    }
+
+    .stat-box .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #f0c040;
+    }
+
+    .stat-box .unit-label {
+      font-size: 0.75rem;
+      color: #607080;
+      margin-top: 2px;
+    }
+
+    /* Cost input */
+    .cost-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .cost-row label { color: #a0c0d0; font-size: 0.9rem; white-space: nowrap; }
+
+    .cost-row input {
+      width: 140px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .cost-row input:focus { border-color: #f0c040; }
+
+    /* Chart */
+    .chart-container {
+      max-width: 360px;
+      margin: 0 auto;
+    }
+
+    /* Clear all */
+    .btn-clear {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #a0b0c0;
+      border-radius: 8px;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+      margin-top: 10px;
+    }
+
+    .btn-clear:hover { background: rgba(255,255,255,0.1); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #f0c040;
+      color: #1a1a1a;
+      font-weight: 700;
+      padding: 10px 24px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      transition: transform 0.3s ease;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 560px) {
+      header h1 { font-size: 1.4rem; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>⚡ حاسبة استهلاك الكهرباء</h1>
+    <p>أضف أجهزتك الكهربائية واحسب استهلاكها ومصاريفها</p>
+  </header>
+
+  <!-- Input Card -->
+  <div class="card">
+    <h2>➕ إضافة جهاز</h2>
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label>اسم الجهاز</label>
+        <input type="text" id="deviceName" placeholder="مثال: تكييف غرفة النوم" />
+      </div>
+
+      <div class="form-group">
+        <label>القدرة</label>
+        <div class="unit-row">
+          <input type="number" id="power" placeholder="0" min="0" />
+          <select id="powerUnit">
+            <option value="watt">واط</option>
+            <option value="amp">أمبير</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>ساعات الاستخدام / يوم</label>
+        <input type="number" id="hours" placeholder="0" min="0" max="24" />
+      </div>
+
+      <div class="form-group">
+        <label>عدد الوحدات</label>
+        <input type="number" id="quantity" placeholder="1" min="1" value="1" />
+      </div>
+
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <button class="btn-add" onclick="addDevice()">إضافة الجهاز</button>
+      </div>
+
+    </div>
+    <p class="voltage-note">* الجهد المستخدم في الحسابة: 220 فولت — الأمبير يُحوَّل تلقائياً إلى واط</p>
+  </div>
+
+  <!-- Devices Table -->
+  <div class="card">
+    <h2>📋 قائمة الأجهزة</h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>اسم الجهاز</th>
+            <th>القدرة (واط)</th>
+            <th>الوحدات</th>
+            <th>ساعات/يوم</th>
+            <th>استهلاك يومي (kWh)</th>
+            <th>استهلاك شهري (kWh)</th>
+            <th>حذف</th>
+          </tr>
+        </thead>
+        <tbody id="deviceTable">
+          <tr>
+            <td colspan="8" class="empty-msg">لم تُضَف أجهزة بعد</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <button class="btn-clear" onclick="clearAll()">🗑 مسح الكل</button>
+  </div>
+
+  <!-- Results Card -->
+  <div class="card">
+    <h2>📊 النتائج</h2>
+
+    <div class="cost-row">
+      <label>سعر الكيلوواط/ساعة:</label>
+      <input type="number" id="kwhPrice" placeholder="0.10" step="0.01" value="0.10" oninput="updateResults()" />
+      <span style="color:#a0b0c0; font-size:0.85rem;">ريال / kWh</span>
+    </div>
+
+    <div class="results-grid">
+      <div class="stat-box">
+        <div class="label">إجمالي الاستهلاك اليومي</div>
+        <div class="value" id="totalDaily">0.00</div>
+        <div class="unit-label">كيلوواط/ساعة</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">إجمالي الاستهلاك الشهري</div>
+        <div class="value" id="totalMonthly">0.00</div>
+        <div class="unit-label">كيلوواط/ساعة</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">التكلفة اليومية</div>
+        <div class="value" id="costDaily">0.00</div>
+        <div class="unit-label">ريال</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">التكلفة الشهرية</div>
+        <div class="value" id="costMonthly">0.00</div>
+        <div class="unit-label">ريال</div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <canvas id="pieChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const VOLTAGE = 220;
+  let devices = [];
+  let chart = null;
+
+  function toWatt(value, unit) {
+    return unit === 'amp' ? value * VOLTAGE : value;
+  }
+
+  function addDevice() {
+    const name     = document.getElementById('deviceName').value.trim();
+    const power    = parseFloat(document.getElementById('power').value);
+    const unit     = document.getElementById('powerUnit').value;
+    const hours    = parseFloat(document.getElementById('hours').value);
+    const quantity = parseInt(document.getElementById('quantity').value) || 1;
+
+    if (!name)          return showToast('الرجاء إدخال اسم الجهاز');
+    if (!power || power <= 0) return showToast('الرجاء إدخال قدرة صحيحة');
+    if (!hours || hours <= 0 || hours > 24) return showToast('الرجاء إدخال ساعات صحيحة (1-24)');
+
+    const watt       = toWatt(power, unit);
+    const dailyKwh   = (watt * quantity * hours) / 1000;
+    const monthlyKwh = dailyKwh * 30;
+
+    devices.push({ id: Date.now(), name, watt, quantity, hours, dailyKwh, monthlyKwh });
+
+    clearInputs();
+    renderTable();
+    updateResults();
+    showToast('✅ تم إضافة الجهاز');
+  }
+
+  function deleteDevice(id) {
+    devices = devices.filter(d => d.id !== id);
+    renderTable();
+    updateResults();
+  }
+
+  function clearAll() {
+    if (devices.length === 0) return;
+    if (confirm('هل أنت متأكد من مسح جميع الأجهزة؟')) {
+      devices = [];
+      renderTable();
+      updateResults();
+    }
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('deviceTable');
+    if (devices.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">لم تُضَف أجهزة بعد</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = devices.map((d, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td style="font-weight:600; color:#e8e8e8;">${escHtml(d.name)}</td>
+        <td>${d.watt.toFixed(0)}</td>
+        <td>${d.quantity}</td>
+        <td>${d.hours}</td>
+        <td style="color:#7dd3a8;">${d.dailyKwh.toFixed(3)}</td>
+        <td style="color:#7dd3a8;">${d.monthlyKwh.toFixed(2)}</td>
+        <td><button class="btn-del" onclick="deleteDevice(${d.id})">حذف</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function updateResults() {
+    const price       = parseFloat(document.getElementById('kwhPrice').value) || 0;
+    const totalDaily  = devices.reduce((s, d) => s + d.dailyKwh, 0);
+    const totalMonthly = totalDaily * 30;
+
+    document.getElementById('totalDaily').textContent   = totalDaily.toFixed(3);
+    document.getElementById('totalMonthly').textContent = totalMonthly.toFixed(2);
+    document.getElementById('costDaily').textContent    = (totalDaily * price).toFixed(2);
+    document.getElementById('costMonthly').textContent  = (totalMonthly * price).toFixed(2);
+
+    renderChart();
+  }
+
+  function renderChart() {
+    const ctx = document.getElementById('pieChart').getContext('2d');
+    if (chart) { chart.destroy(); chart = null; }
+
+    if (devices.length === 0) return;
+
+    const palette = [
+      '#f0c040','#4fc3f7','#81c784','#ff8a65',
+      '#ce93d8','#4dd0e1','#ffb74d','#a5d6a7','#ef9a9a','#90caf9'
+    ];
+
+    chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: devices.map(d => d.name),
+        datasets: [{
+          data: devices.map(d => d.dailyKwh),
+          backgroundColor: devices.map((_, i) => palette[i % palette.length]),
+          borderColor: 'rgba(0,0,0,0.3)',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#c0d0e0', font: { size: 12 }, padding: 14 }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${ctx.parsed.toFixed(3)} kWh/يوم`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function clearInputs() {
+    document.getElementById('deviceName').value = '';
+    document.getElementById('power').value      = '';
+    document.getElementById('hours').value      = '';
+    document.getElementById('quantity').value   = '1';
+    document.getElementById('powerUnit').value  = 'watt';
+    document.getElementById('deviceName').focus();
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Allow Enter key to add device
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.activeElement.tagName === 'INPUT') addDevice();
+  });
+</script>
+</body>
+</html>
